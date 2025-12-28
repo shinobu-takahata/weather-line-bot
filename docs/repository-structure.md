@@ -68,6 +68,7 @@ weather-line-bot/
 ├── .eslintrc.json                    # ESLint設定
 ├── .prettierrc                       # Prettier設定
 │
+├── .mise.toml                        # miseツールバージョン管理設定
 ├── .gitignore                        # Git除外設定
 ├── .env.example                      # 環境変数のサンプル（ローカル開発用）
 │
@@ -390,7 +391,40 @@ export default defineConfig({
 }
 ```
 
-### 4.8 `.gitignore`
+### 4.8 `.mise.toml`
+**目的**: miseツールバージョン管理設定
+
+**内容**:
+```toml
+[tools]
+# Node.js - Lambda nodejs20.x ランタイムに対応
+node = "20.11.0"
+
+# AWS CLI - AWSリソース管理
+awscli = "2.15.0"
+
+# 注: SAM CLIは pip install aws-sam-cli で別途インストール
+```
+
+**管理ルール**:
+- Node.jsバージョンはLambda実行環境と完全一致させる
+- AWS CLIバージョンはチーム全体で統一
+- SAM CLIはmiseプラグインがないため、pipで別途管理
+- `.mise.toml`はGit管理し、チーム全体で共有
+- 新規メンバーは`mise install`で環境構築可能
+
+**使用方法**:
+```bash
+# プロジェクトルートで実行
+mise install
+
+# バージョン確認
+mise current
+node -v    # v20.11.0
+aws --version  # aws-cli/2.15.0
+```
+
+### 4.9 `.gitignore`
 **目的**: Git除外設定
 
 **主要な除外対象**:
@@ -405,7 +439,7 @@ samconfig.toml
 coverage/
 ```
 
-### 4.9 `.env.example`
+### 4.10 `.env.example`
 **目的**: 環境変数のサンプル（ローカル開発用）
 
 **内容**:
@@ -431,50 +465,31 @@ AWS_REGION=ap-northeast-1
 
 ## 5. README.md
 
+### 役割
+- プロジェクトの概要説明
+- 開発環境のセットアップ手順
+- ローカル開発の方法
+- デプロイ手順
+
 ### 必須セクション
 
-```markdown
-# Weather LINE Bot
+| セクション | 内容 |
+|-----------|------|
+| **プロジェクト概要** | アプリケーションの説明、機能一覧 |
+| **技術スタック** | 使用技術の一覧 |
+| **開発環境セットアップ** | mise、SAM CLI、依存関係のインストール手順 |
+| **ローカル開発** | テスト実行、Lambda関数のローカル実行 |
+| **デプロイ** | 自動デプロイ方法、初回デプロイ手順 |
+| **プロジェクト構成** | ディレクトリ構造の概要 |
+| **ドキュメント** | `docs/`ディレクトリへのリンク |
+| **開発ワークフロー** | ブランチ戦略、コミット規約、CI/CD |
+| **トラブルシューティング** | よくある問題と解決方法 |
 
-川崎市の天気を毎朝LINEで通知するBot
-
-## 機能
-- 毎日09:00に川崎市の天気情報を配信
-- 最高気温、最低気温、降水確率を通知
-
-## セットアップ
-
-### 前提条件
-- Node.js 20.x
-- AWS CLI v2
-- SAM CLI
-- OpenWeather API Key
-- LINE Messaging API Token
-
-### インストール
-1. リポジトリをクローン
-2. 依存関係をインストール: `npm install`
-3. Parameter Storeにシークレットを設定
-4. デプロイ: `sam build && sam deploy --guided`
-
-### ローカルテスト
-```bash
-npm test
-sam local invoke WeatherNotificationFunction --event events/eventbridge-event.json
-```
-
-## 技術スタック
-- Runtime: Node.js 20.x + TypeScript
-- Infrastructure: AWS Lambda + EventBridge
-- IaC: AWS SAM
-- CI/CD: GitHub Actions
-
-## ドキュメント
-詳細は `docs/` ディレクトリを参照
-
-## ライセンス
-MIT
-```
+### 管理ルール
+- 実際の内容は `/README.md` を参照
+- 初心者が読んで環境構築できるレベルの詳細さを保つ
+- CI/CDで自動化される内容は「自動実行される」と明記
+- 手動で行う必要がある手順のみ記載
 
 ---
 

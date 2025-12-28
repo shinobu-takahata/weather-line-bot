@@ -50,20 +50,161 @@
 | **ESLint** | 静的解析 | TypeScript対応、カスタマイズ可能 |
 | **Prettier** | コードフォーマット | 一貫性のあるコードスタイル |
 
+### 1.7 開発ツールバージョン管理
+
+| 技術 | 用途 | 選定理由 |
+|------|------|---------|
+| **mise** | ツールバージョン管理 | 高速、.mise.toml対応、チーム全体でバージョン統一 |
+
+**miseで管理するツール**（厳密に管理）:
+
+| ツール | バージョン | 管理理由 |
+|--------|-----------|---------|
+| **Node.js** | 20.11.0 | Lambda実行環境（nodejs20.x）との完全一致を保証 |
+| **AWS CLI** | 2.15.0 | チーム全体で同じバージョンを使用、再現性の確保 |
+| **AWS SAM CLI** | 1.108.0 | SAMテンプレート互換性の保証 |
+
+**miseで管理しないツール**（OS標準）:
+- **Git**: OS標準またはHomebrew（バージョン差異の影響が少ない）
+
 ---
 
 ## 2. 開発ツールと手法
 
 ### 2.1 開発環境
 
-#### 必須ツール
+#### ツールバージョン管理（mise）
+
+**miseとは**:
+- asdfの後継として開発された高速なツールバージョン管理ツール
+- `.mise.toml`でプロジェクト全体のツールバージョンを一元管理
+- チーム開発で全員が同じバージョンを使用することを保証
+
+**miseのインストール**:
 ```bash
-- Node.js 20.x
-- npm または yarn
-- AWS CLI v2
-- SAM CLI
-- Git
+# macOS (Homebrew)
+brew install mise
+
+# Linux
+curl https://mise.run | sh
+
+# Windows (PowerShell)
+irm https://mise.run/install.ps1 | iex
 ```
+
+**miseの初期設定**:
+```bash
+# シェル設定に追加（bash）
+echo 'eval "$(mise activate bash)"' >> ~/.bashrc
+source ~/.bashrc
+
+# シェル設定に追加（zsh）
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
+source ~/.zshrc
+
+# シェル設定に追加（fish）
+echo 'mise activate fish | source' >> ~/.config/fish/config.fish
+```
+
+**mise設定ファイル（.mise.toml）**:
+
+プロジェクトルートに配置する設定ファイル：
+
+```toml
+[tools]
+# Node.js - Lambda nodejs20.x ランタイムに対応
+node = "20.11.0"
+
+# AWS CLI - AWSリソース管理
+awscli = "2.15.0"
+
+# AWS SAM CLI - サーバーレスアプリケーション管理
+# mise-pluginsを使用（公式プラグインなし）
+# 注: SAM CLIはpipでのインストールを推奨する場合もある
+# その場合はこの行をコメントアウトし、手動インストール
+```
+
+**注意**: SAM CLIはmiseの公式プラグインがないため、以下のいずれかの方法で管理：
+1. **方法A**: pipでインストール（推奨）
+   ```bash
+   pip install aws-sam-cli==1.108.0
+   ```
+2. **方法B**: Homebrewでインストール
+   ```bash
+   brew install aws-sam-cli
+   ```
+
+**最終的な.mise.toml**（SAM CLIはpip管理）:
+```toml
+[tools]
+# Node.js - Lambda nodejs20.x ランタイムに対応
+node = "20.11.0"
+
+# AWS CLI - AWSリソース管理
+awscli = "2.15.0"
+
+# 注: SAM CLIは pip install aws-sam-cli で別途インストール
+```
+
+**miseの使用方法**:
+```bash
+# プロジェクトルートで実行（.mise.toml読み込み）
+cd weather-line-bot
+mise install
+
+# ツールバージョン確認
+mise current
+
+# 各ツールのバージョン確認
+node -v     # v20.11.0
+npm -v      # v10.x（Node.jsに付属）
+aws --version  # aws-cli/2.15.0
+sam --version  # SAM CLI, version 1.108.0（pipインストール）
+```
+
+**チーム開発における利点**:
+- 全開発者が同じNode.js、AWS CLIバージョンを使用
+- Lambda実行環境との完全一致を保証
+- `.mise.toml`をGit管理することでバージョンの一元管理
+- 新メンバーは`mise install`だけでセットアップ完了
+
+#### 必須ツール一覧
+
+| ツール | バージョン | 管理方法 | 備考 |
+|--------|-----------|---------|------|
+| **mise** | 最新 | Homebrew / curl | ツールバージョン管理 |
+| **Node.js** | 20.11.0 | mise | .mise.tomlで管理 |
+| **npm** | 10.x | Node.jsに付属 | 自動インストール |
+| **AWS CLI** | 2.15.0 | mise | .mise.tomlで管理 |
+| **SAM CLI** | 1.108.0 | pip | `pip install aws-sam-cli` |
+| **Git** | 最新 | OS標準 | バージョン管理不要 |
+
+#### セットアップ手順
+
+1. **miseのインストール**（初回のみ）
+   ```bash
+   brew install mise
+   echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+2. **プロジェクトツールのインストール**
+   ```bash
+   cd weather-line-bot
+   mise install  # .mise.tomlを読み込んでNode.js、AWS CLIをインストール
+   ```
+
+3. **SAM CLIのインストール**（pipで管理）
+   ```bash
+   pip install aws-sam-cli==1.108.0
+   ```
+
+4. **インストール確認**
+   ```bash
+   node -v    # v20.11.0
+   aws --version  # aws-cli/2.15.0
+   sam --version  # SAM CLI, version 1.108.0
+   ```
 
 #### 推奨IDE
 - **Visual Studio Code**
