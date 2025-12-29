@@ -1,4 +1,12 @@
 import { EventBridgeEvent } from 'aws-lambda';
+import {
+  getOpenWeatherApiKey,
+  getLineChannelAccessToken,
+} from './services/secretsService';
+import { getWeather } from './services/weatherService';
+import { sendBroadcastMessage } from './services/lineService';
+import { formatWeatherMessage } from './utils/formatter';
+import { Logger } from './utils/logger';
 
 /**
  * Lambda関数のハンドラー
@@ -7,19 +15,27 @@ import { EventBridgeEvent } from 'aws-lambda';
 export const handler = async (
   event: EventBridgeEvent<'Scheduled Event', never>
 ): Promise<void> => {
-  console.log('Lambda function invoked');
-  console.log('Event:', JSON.stringify(event, null, 2));
+  Logger.info('Lambda function invoked', { event });
 
-  // ダミー実装：メッセージをログ出力
-  const message = {
-    timestamp: new Date().toISOString(),
-    source: event.source,
-    time: event.time,
-    message: 'Weather notification handler invoked successfully',
-  };
+  try {
+    // 1. Parameter Storeから設定値を取得
+    const [apiKey, accessToken] = await Promise.all([
+      getOpenWeatherApiKey(),
+      getLineChannelAccessToken(),
+    ]);
 
-  console.log('Output:', JSON.stringify(message, null, 2));
+    // 2. OpenWeather APIから天気データを取得
+    const weatherData = await getWeather(apiKey);
 
-  // 正常終了
-  console.log('Lambda function completed successfully');
+    // 3. メッセージをフォーマット
+    const message = formatWeatherMessage(weatherData);
+
+    // 4. LINE Broadcast APIでメッセージを送信
+    await sendBroadcastMessage(accessToken, message);
+
+    Logger.info('Weather notification completed successfully');
+  } catch (error) {
+    Logger.error('Weather notification failed', error as Error);
+    throw error;
+  }
 };
