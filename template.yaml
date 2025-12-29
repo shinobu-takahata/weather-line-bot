@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Weather LINE Bot - Kawasaki City Weather Notification
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+
+Resources:
+  WeatherNotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.handler
+      Description: 川崎市の天気を毎朝LINEで通知するLambda関数
+      Environment:
+        Variables:
+          NODE_ENV: production
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 0 * * ? *)  # 毎日00:00 UTC = 09:00 JST
+            Description: 毎日09:00 JSTに天気通知を実行
+            Enabled: true
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: weather-bot/*
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+      LoggingConfig:
+        LogFormat: JSON
+        LogGroup: !Ref WeatherNotificationLogGroup
+
+  WeatherNotificationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${WeatherNotificationFunction}'
+      RetentionInDays: 7
+
+Outputs:
+  WeatherNotificationFunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt WeatherNotificationFunction.Arn
+
+  WeatherNotificationFunctionName:
+    Description: Lambda Function Name
+    Value: !Ref WeatherNotificationFunction

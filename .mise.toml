@@ -1,0 +1,8 @@
+[tools]
+# Node.js - Lambda nodejs20.x ランタイムに対応
+node = "20.11.0"
+
+# AWS CLI - AWSリソース管理
+awscli = "2.15.0"
+
+# 注: SAM CLIは pip install aws-sam-cli で別途インストール
