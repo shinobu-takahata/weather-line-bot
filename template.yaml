@@ -15,6 +15,7 @@ Resources:
   WeatherNotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: weather-line-bot-WeatherNotificationFunction
       CodeUri: ./
       Handler: dist/index.handler
       Description: 川崎市の天気を毎朝LINEで通知するLambda関数
@@ -40,12 +41,11 @@ Resources:
               Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
       LoggingConfig:
         LogFormat: JSON
-        LogGroup: !Ref WeatherNotificationLogGroup
 
   WeatherNotificationLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/${WeatherNotificationFunction}'
+      LogGroupName: /aws/lambda/weather-line-bot-WeatherNotificationFunction
       RetentionInDays: 7
 
 Outputs:
