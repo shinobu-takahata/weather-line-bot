@@ -362,17 +362,149 @@ sam local invoke WeatherNotificationFunction \
   --event events/eventbridge-event.json
 ```
 
-### 7.2 デプロイフロー
+### 7.2 デプロイフロー（今回実装）
+
+#### 7.2.1 AWS認証情報の確認
+
+デプロイ前に、使用するAWSプロファイルを確認します。
+
+```bash
+# 利用可能なプロファイル一覧を確認
+aws configure list-profiles
+
+# 使用するプロファイル名を環境変数に設定（your-profile-nameを実際のプロファイル名に置き換える）
+export AWS_PROFILE=your-profile-name
+
+# 認証情報の確認
+aws sts get-caller-identity --profile $AWS_PROFILE
+```
+
+#### 7.2.2 Parameter Store設定
+
+初回デプロイ前に、AWS Systems Manager Parameter Storeにシークレットを設定します。
+ダミー値で設定し、後続のPhase 2で実際の値に更新します。
+
+```bash
+# OpenWeather API Key（ダミー値）
+aws ssm put-parameter \
+  --name "/weather-bot/openweather-api-key" \
+  --type "SecureString" \
+  --value "DUMMY_API_KEY_REPLACE_LATER" \
+  --description "OpenWeather API Key" \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+
+# LINE Channel Access Token（ダミー値）
+aws ssm put-parameter \
+  --name "/weather-bot/line-channel-access-token" \
+  --type "SecureString" \
+  --value "DUMMY_TOKEN_REPLACE_LATER" \
+  --description "LINE Channel Access Token" \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+
+# 確認
+aws ssm get-parameters \
+  --names "/weather-bot/openweather-api-key" "/weather-bot/line-channel-access-token" \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+```
+
+#### 7.2.3 初回デプロイ
 
 ```bash
 # 1. SAMビルド
 sam build
 
 # 2. 初回デプロイ（対話形式）
-sam deploy --guided
+sam deploy --guided --profile $AWS_PROFILE
+```
 
-# 3. 2回目以降のデプロイ
-sam deploy
+**`sam deploy --guided`の対話的な質問**:
+- Stack Name: `weather-line-bot` (デフォルトのまま)
+- AWS Region: `ap-northeast-1` (デフォルトのまま)
+- Confirm changes before deploy: `N`
+- Allow SAM CLI IAM role creation: `Y`
+- Disable rollback: `N`
+- WeatherNotificationFunction may not have authorization defined, Is this okay?: `Y`
+- Save arguments to configuration file: `Y`
+- SAM configuration file: `samconfig.toml` (デフォルトのまま)
+- SAM configuration environment: `default` (デフォルトのまま)
+
+注: `--profile`オプションは`samconfig.toml`には保存されないため、毎回指定が必要です。
+
+#### 7.2.4 デプロイ後の確認
+
+```bash
+# 1. CloudFormationスタックの確認
+aws cloudformation describe-stacks \
+  --stack-name weather-line-bot \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --query 'Stacks[0].StackStatus'
+
+# 2. Lambda関数の確認
+aws lambda list-functions \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --query 'Functions[?contains(FunctionName, `weather-line-bot`)].[FunctionName, Runtime, LastModified]'
+
+# 3. EventBridgeルールの確認
+aws events list-rules \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --query 'Rules[?contains(Name, `weather-line-bot`)].[Name, State, ScheduleExpression]'
+
+# 4. CloudWatch Logsの確認（Lambda実行後）
+# 注: XXXXX部分は実際のLambda関数名に置き換える
+aws logs tail /aws/lambda/weather-line-bot-WeatherNotificationFunction-XXXXX \
+  --follow \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+```
+
+#### 7.2.5 手動Lambda実行テスト
+
+デプロイ後、EventBridgeのスケジュール待ちではなく、手動でLambda関数を実行してテストします。
+
+```bash
+# Lambda関数名を取得
+FUNCTION_NAME=$(aws cloudformation describe-stacks \
+  --stack-name weather-line-bot \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --query 'Stacks[0].Outputs[?OutputKey==`WeatherNotificationFunctionName`].OutputValue' \
+  --output text)
+
+# Lambda関数を手動実行
+aws lambda invoke \
+  --function-name $FUNCTION_NAME \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --payload '{}' \
+  response.json
+
+# レスポンス確認
+cat response.json
+
+# CloudWatch Logsを確認
+aws logs tail /aws/lambda/$FUNCTION_NAME \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --since 5m
+```
+
+#### 7.2.6 2回目以降のデプロイ（参考）
+
+初回デプロイ後、`samconfig.toml`が更新されるため、次回以降は`--guided`オプション不要です。
+ただし`--profile`は毎回必要です。
+
+```bash
+# SAMビルド
+sam build
+
+# デプロイ
+sam deploy --profile $AWS_PROFILE
 ```
 
 ## 8. 確認項目
@@ -400,6 +532,15 @@ sam deploy
 - [ ] `sam local invoke`でLambda関数が実行される
 - [ ] ログが出力される
 - [ ] エラーが発生しない
+
+### 8.5 AWSデプロイ
+
+- [ ] AWS認証情報が設定されている
+- [ ] Parameter Storeにダミー値が設定されている
+- [ ] `sam deploy --guided --profile $AWS_PROFILE`でデプロイが成功する
+- [ ] CloudFormationスタックが`CREATE_COMPLETE`状態になる
+- [ ] Lambda関数がAWS上で実行できる
+- [ ] CloudWatch Logsにログが出力される
 
 ## 9. トラブルシューティング
 
@@ -436,6 +577,84 @@ sam validate
 # Dockerを起動
 # macOS: Docker Desktopを起動
 # Linux: sudo systemctl start docker
+```
+
+### 問題4: `sam deploy`で認証エラーが出る
+
+**原因**: AWS認証情報が設定されていない、または`--profile`が指定されていない
+
+**対応**:
+```bash
+# 認証情報を確認
+aws sts get-caller-identity --profile $AWS_PROFILE
+
+# プロファイルが設定されていない場合、設定
+aws configure --profile your-profile-name
+
+# デプロイ時に--profileを指定
+sam deploy --guided --profile $AWS_PROFILE
+```
+
+### 問題5: Parameter Storeへの登録でエラーが出る
+
+**原因**: 同名のパラメータがすでに存在する
+
+**対応**:
+```bash
+# 既存のパラメータを削除
+aws ssm delete-parameter \
+  --name "/weather-bot/openweather-api-key" \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+
+# 再度登録
+aws ssm put-parameter \
+  --name "/weather-bot/openweather-api-key" \
+  --type "SecureString" \
+  --value "DUMMY_API_KEY_REPLACE_LATER" \
+  --description "OpenWeather API Key" \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+```
+
+または、`--overwrite`オプションを使用:
+```bash
+aws ssm put-parameter \
+  --name "/weather-bot/openweather-api-key" \
+  --type "SecureString" \
+  --value "DUMMY_API_KEY_REPLACE_LATER" \
+  --description "OpenWeather API Key" \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE \
+  --overwrite
+```
+
+### 問題6: CloudFormationスタックの作成でエラーが出る
+
+**原因**: IAM権限不足、またはリソース名の重複
+
+**対応**:
+```bash
+# CloudFormationスタックの状態を確認
+aws cloudformation describe-stacks \
+  --stack-name weather-line-bot \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+
+# エラーが発生している場合、スタックを削除して再デプロイ
+aws cloudformation delete-stack \
+  --stack-name weather-line-bot \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+
+# 削除完了を待つ
+aws cloudformation wait stack-delete-complete \
+  --stack-name weather-line-bot \
+  --region ap-northeast-1 \
+  --profile $AWS_PROFILE
+
+# 再デプロイ
+sam deploy --guided --profile $AWS_PROFILE
 ```
 
 ## 10. 次のステップ

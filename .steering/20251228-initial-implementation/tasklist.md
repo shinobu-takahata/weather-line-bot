@@ -223,12 +223,57 @@
 
 ---
 
-## Phase 7: ドキュメント更新（オプション）
+## Phase 7: AWSへの初回デプロイ
 
-### 7.1 CLAUDE.md確認
+### 7.1 AWS認証情報の確認
+- [ ] `aws configure list-profiles`で利用可能なプロファイルを確認
+- [ ] `export AWS_PROFILE=your-profile-name`でプロファイルを設定
+- [ ] `aws sts get-caller-identity --profile $AWS_PROFILE`で認証情報を確認
+
+### 7.2 Parameter Store設定
+- [ ] OpenWeather API Key（ダミー値）をParameter Storeに登録
+  - [ ] Parameter名: `/weather-bot/openweather-api-key`
+  - [ ] Type: `SecureString`
+  - [ ] Value: `DUMMY_API_KEY_REPLACE_LATER`
+- [ ] LINE Channel Access Token（ダミー値）をParameter Storeに登録
+  - [ ] Parameter名: `/weather-bot/line-channel-access-token`
+  - [ ] Type: `SecureString`
+  - [ ] Value: `DUMMY_TOKEN_REPLACE_LATER`
+- [ ] `aws ssm get-parameters`で登録内容を確認
+
+### 7.3 初回デプロイ
+- [ ] `sam build`を実行
+- [ ] `sam deploy --guided --profile $AWS_PROFILE`を実行
+- [ ] 対話的な質問に回答
+  - [ ] Stack Name: `weather-line-bot`
+  - [ ] AWS Region: `ap-northeast-1`
+  - [ ] Confirm changes: `N`
+  - [ ] Allow IAM role creation: `Y`
+  - [ ] Disable rollback: `N`
+  - [ ] Authorization: `Y`
+  - [ ] Save configuration: `Y`
+- [ ] デプロイが成功することを確認
+
+### 7.4 デプロイ後の確認
+- [ ] CloudFormationスタックの状態が`CREATE_COMPLETE`であることを確認
+- [ ] Lambda関数が作成されていることを確認
+- [ ] EventBridgeルールが作成されていることを確認
+
+### 7.5 手動Lambda実行テスト
+- [ ] Lambda関数名を取得
+- [ ] `aws lambda invoke`で手動実行
+- [ ] `response.json`で実行結果を確認
+- [ ] CloudWatch Logsでログを確認
+- [ ] エラーが発生しないことを確認
+
+---
+
+## Phase 8: ドキュメント更新（オプション）
+
+### 8.1 CLAUDE.md確認
 - [ ] CLAUDE.mdの開発ルールに準拠していることを確認
 
-### 7.2 README.md確認
+### 8.2 README.md確認
 - [ ] README.mdのセットアップ手順が正しいことを確認
 
 ---
@@ -242,6 +287,10 @@
 - [ ] AWS SAMテンプレートが作成されている
 - [ ] 最小限のLambda関数が実装されている
 - [ ] `sam local invoke`でローカル実行できる
+- [ ] Parameter Storeにダミー値が設定されている
+- [ ] AWSへのデプロイが成功している
+- [ ] Lambda関数がAWS上で実行できる
+- [ ] CloudWatch Logsにログが出力される
 - [ ] すべてのタスクが完了している
 
 ---

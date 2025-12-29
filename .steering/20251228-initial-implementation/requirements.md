@@ -37,6 +37,14 @@
    - `samconfig.toml` 作成
    - `events/eventbridge-event.json` 作成
 
+6. **AWSへの初回デプロイ（手動）**
+   - Parameter Storeへのシークレット設定（ダミー値）
+   - `sam deploy --guided`での初回手動デプロイ
+   - デプロイ後の動作確認
+   - CloudWatch Logsでの実行ログ確認
+
+   注: Phase 5ではCI/CDパイプラインを通したデプロイを実装します
+
 ## 除外事項（今回は実装しない）
 
 ### 後続の作業で実装するもの
@@ -100,6 +108,16 @@
 - [ ] `node_modules/`、`dist/`、`.aws-sam/`が除外されている
 - [ ] `samconfig.toml`が作成されている
 
+### AWSデプロイ
+
+- [ ] AWS Parameter Storeにシークレットが設定されている
+  - [ ] `/weather-bot/openweather-api-key` (ダミー値でOK)
+  - [ ] `/weather-bot/line-channel-access-token` (ダミー値でOK)
+- [ ] `sam deploy --guided`でデプロイが成功する
+- [ ] CloudFormationスタックが作成されている
+- [ ] Lambda関数がAWS上で実行できる
+- [ ] CloudWatch Logsにログが出力される
+
 ## ユーザーストーリー
 
 ### ストーリー1: 開発環境構築
@@ -154,6 +172,20 @@ So that AWSにデプロイする前に動作確認できる
 - EventBridgeイベントJSONが読み込まれる
 - エラーが発生しない
 
+### ストーリー5: AWSへの初回デプロイ
+
+```
+As a 開発者
+I want AWSに初回デプロイしたい
+So that 本番環境でLambda関数が動作することを確認できる
+```
+
+**受け入れ条件**:
+- Parameter Storeにシークレットが設定されている
+- `sam deploy --guided`でデプロイが成功する
+- CloudFormationスタックが作成される
+- Lambda関数がAWS上で実行できる
+
 ## 制約事項
 
 ### 技術的制約
@@ -183,6 +215,9 @@ So that AWSにデプロイする前に動作確認できる
 4. `sam validate`でエラーが出ない
 5. `sam build`が成功する
 6. `sam local invoke`でLambda関数が実行される
+7. Parameter Storeにシークレットが設定される
+8. `sam deploy --guided`でAWSへのデプロイが成功する
+9. Lambda関数がAWS上で実行される
 
 ### 推奨条件
 
