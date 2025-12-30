@@ -11,7 +11,7 @@ export const KAWASAKI_LOCATION = {
  */
 export const OPENWEATHER_CONFIG = {
   baseUrl: 'https://api.openweathermap.org/data/2.5',
-  endpoint: '/weather',
+  endpoint: '/forecast', // 5 day / 3 hour forecast
   units: 'metric', // 摂氏
   lang: 'ja', // 日本語
 } as const;

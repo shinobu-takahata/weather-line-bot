@@ -10,7 +10,7 @@ export function formatWeatherMessage(weather: WeatherData): string {
 
 今日の天気: ${description}
 
-🌡️ 気温
+🌡️ 気温（9時〜23時）
 ・現在: ${temperature.current}℃
 ・最低: ${temperature.min}℃
 ・最高: ${temperature.max}℃
