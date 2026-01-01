@@ -71,7 +71,7 @@ jobs:
       - name: SAM deploy
         run: |
           sam deploy \
-            --stack-name weather-line-bot-stack \
+            --stack-name weather-line-bot \
             --region ap-northeast-1 \
             --capabilities CAPABILITY_IAM \
             --resolve-s3 \
