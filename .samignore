@@ -1,0 +1,39 @@
+# Source files
+src/
+tests/
+
+# Configuration files
+.env
+.env.*
+tsconfig.json
+vitest.config.ts
+.eslintrc.json
+.prettierrc
+
+# Package management
+package.json
+package-lock.json
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+docs/
+.steering/
+README.md
+CLAUDE.md
+
+# CI/CD
+.github/
+
+# Coverage
+coverage/
+
+# Build artifacts (except dist/)
+node_modules/
+*.log

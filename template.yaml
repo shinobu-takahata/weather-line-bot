@@ -16,8 +16,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: weather-line-bot-WeatherNotificationFunction
-      CodeUri: ./
-      Handler: dist/index.handler
+      CodeUri: dist/
+      Handler: index.handler
       Description: 川崎市の天気を毎朝LINEで通知するLambda関数
       Environment:
         Variables:
