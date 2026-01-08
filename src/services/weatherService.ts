@@ -1,6 +1,5 @@
 import axios from 'axios';
 import {
-  KAWASAKI_LOCATION,
   WEATHERAPI_CONFIG,
   JMA_CONFIG,
   WEATHERAPI_EMOJI,
