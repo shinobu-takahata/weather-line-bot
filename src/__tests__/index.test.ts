@@ -27,7 +27,7 @@ describe('Lambda Handler', () => {
 
   describe('Happy Path', () => {
     it('should execute successfully with all services working', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -40,7 +40,7 @@ describe('Lambda Handler', () => {
 
       await expect(handler({} as any)).resolves.toBeUndefined();
 
-      expect(secretsService.getOpenWeatherApiKey).toHaveBeenCalledTimes(1);
+      expect(secretsService.getWeatherApiKey).toHaveBeenCalledTimes(1);
       expect(secretsService.getLineChannelAccessToken).toHaveBeenCalledTimes(
         1
       );
@@ -51,9 +51,9 @@ describe('Lambda Handler', () => {
     it('should call services in correct order', async () => {
       const callOrder: string[] = [];
 
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockImplementation(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockImplementation(
         async () => {
-          callOrder.push('getOpenWeatherApiKey');
+          callOrder.push('getWeatherApiKey');
           return 'test-api-key';
         }
       );
@@ -76,14 +76,14 @@ describe('Lambda Handler', () => {
       await handler({} as any);
 
       // Parameter Store取得は並列、その後天気取得、最後にLINE送信
-      expect(callOrder).toContain('getOpenWeatherApiKey');
+      expect(callOrder).toContain('getWeatherApiKey');
       expect(callOrder).toContain('getLineChannelAccessToken');
       expect(callOrder).toContain('getWeather');
       expect(callOrder).toContain('sendBroadcastMessage');
 
       // 天気取得はParameter Store取得の後
       const weatherIndex = callOrder.indexOf('getWeather');
-      const apiKeyIndex = callOrder.indexOf('getOpenWeatherApiKey');
+      const apiKeyIndex = callOrder.indexOf('getWeatherApiKey');
       expect(weatherIndex).toBeGreaterThan(apiKeyIndex);
 
       // LINE送信は全ての後
@@ -92,7 +92,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should pass correct weather message to LINE service', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -124,7 +124,7 @@ describe('Lambda Handler', () => {
 
   describe('Error Handling - Parameter Store', () => {
     it('should throw error when OpenWeather API key fetch fails', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockRejectedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockRejectedValue(
         new Error('Parameter not found: openweather-api-key')
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -135,13 +135,13 @@ describe('Lambda Handler', () => {
         'Parameter not found: openweather-api-key'
       );
 
-      expect(secretsService.getOpenWeatherApiKey).toHaveBeenCalled();
+      expect(secretsService.getWeatherApiKey).toHaveBeenCalled();
       expect(weatherService.getWeather).not.toHaveBeenCalled();
       expect(lineService.sendBroadcastMessage).not.toHaveBeenCalled();
     });
 
     it('should throw error when LINE token fetch fails', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockRejectedValue(
@@ -160,7 +160,7 @@ describe('Lambda Handler', () => {
 
   describe('Error Handling - Weather Service', () => {
     it('should throw error when weather API fails', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -179,7 +179,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should throw error on network timeout', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -198,7 +198,7 @@ describe('Lambda Handler', () => {
 
   describe('Error Handling - LINE Service', () => {
     it('should throw error when LINE broadcast fails', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -217,7 +217,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should throw error on LINE authentication failure', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -248,7 +248,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should log function invocation', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -271,7 +271,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should log successful completion', async () => {
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockResolvedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockResolvedValue(
         'test-api-key'
       );
       vi.spyOn(secretsService, 'getLineChannelAccessToken').mockResolvedValue(
@@ -297,7 +297,7 @@ describe('Lambda Handler', () => {
 
     it('should log errors with stack trace', async () => {
       const testError = new Error('Test error');
-      vi.spyOn(secretsService, 'getOpenWeatherApiKey').mockRejectedValue(
+      vi.spyOn(secretsService, 'getWeatherApiKey').mockRejectedValue(
         testError
       );
 

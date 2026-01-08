@@ -1,6 +1,6 @@
 import { EventBridgeEvent } from 'aws-lambda';
 import {
-  getOpenWeatherApiKey,
+  getWeatherApiKey,
   getLineChannelAccessToken,
 } from './services/secretsService';
 import { getWeather } from './services/weatherService';
@@ -20,11 +20,11 @@ export const handler = async (
   try {
     // 1. Parameter Storeから設定値を取得
     const [apiKey, accessToken] = await Promise.all([
-      getOpenWeatherApiKey(),
+      getWeatherApiKey(),
       getLineChannelAccessToken(),
     ]);
 
-    // 2. OpenWeather APIから天気データを取得
+    // 2. Weather API + 気象庁APIから天気データを取得
     const weatherData = await getWeather(apiKey);
 
     // 3. メッセージをフォーマット

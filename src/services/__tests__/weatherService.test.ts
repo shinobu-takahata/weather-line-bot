@@ -10,172 +10,430 @@ describe('weatherService', () => {
     vi.clearAllMocks();
   });
 
-  it('should fetch and filter weather data for 09:00-23:00', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    mockedAxios.get.mockResolvedValue({
+  it('should fetch and combine data from Weather API and JMA API', async () => {
+    // Mock Weather API response
+    const weatherApiResponse = {
       data: {
-        list: [
-          {
-            dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 09:00:00`,
-            main: { temp: 15, temp_min: 15, temp_max: 15 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.1,
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 8.5,
+          condition: {
+            text: '晴れ',
+            code: 1000,
           },
-          {
-            dt: Math.floor(new Date(`${todayStr}T12:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 12:00:00`,
-            main: { temp: 20, temp_min: 20, temp_max: 20 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.0,
-          },
-          {
-            dt: Math.floor(new Date(`${todayStr}T21:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 21:00:00`,
-            main: { temp: 12, temp_min: 12, temp_max: 12 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.2,
-          },
-        ],
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 12.0,
+                mintemp_c: 5.0,
+                daily_chance_of_rain: 10,
+                condition: {
+                  text: '晴れ',
+                  code: 1000,
+                },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 6.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 12:00', temp_c: 10.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 15:00', temp_c: 12.0, chance_of_rain: 10, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 18:00', temp_c: 9.0, chance_of_rain: 5, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 21:00', temp_c: 7.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 23:00', temp_c: 6.5, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+              ],
+            },
+          ],
+        },
       },
-    });
+    };
+
+    // Mock JMA API response
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            {
+              timeDefines: ['2026-01-08T00:00:00+09:00'],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  weathers: ['晴れ'],
+                  weatherCodes: ['100'],
+                },
+              ],
+            },
+            {
+              timeDefines: [
+                '2026-01-08T00:00:00+09:00',
+                '2026-01-08T06:00:00+09:00',
+                '2026-01-08T12:00:00+09:00',
+                '2026-01-08T18:00:00+09:00',
+              ],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '10', '0', '0'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
 
     const result = await getWeather('test-api-key');
 
-    expect(result.temperature.min).toBe(12);
-    expect(result.temperature.max).toBe(20);
-    expect(result.temperature.current).toBe(15);
-    expect(result.precipitation).toBe(20); // max 0.2 * 100
+    expect(result.temperature.current).toBe(9); // Math.round(8.5)
+    expect(result.temperature.min).toBe(6); // min of 09:00-23:00
+    expect(result.temperature.max).toBe(12); // max of 09:00-23:00
+    expect(result.precipitation).toBe(10); // max from JMA [10, 0, 0]
     expect(result.description).toBe('晴れ');
-    expect(result.emoji).toBe('☀️');
+    expect(result.emoji).toBe('☀️'); // weather code 1000
   });
 
-  it('should call Forecast API with correct parameters', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    mockedAxios.get.mockResolvedValue({
+  it('should call Weather API with correct parameters', async () => {
+    const weatherApiResponse = {
       data: {
-        list: [
-          {
-            dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 09:00:00`,
-            main: { temp: 18, temp_min: 18, temp_max: 18 },
-            weather: [{ main: 'Clouds', description: '曇り' }],
-            pop: 0.3,
-          },
-        ],
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 10.0,
+          condition: { text: '晴れ', code: 1000 },
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 12.0,
+                mintemp_c: 8.0,
+                daily_chance_of_rain: 0,
+                condition: { text: '晴れ', code: 1000 },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 8.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+              ],
+            },
+          ],
+        },
       },
-    });
+    };
+
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '0', '0', '0'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
 
     await getWeather('my-api-key');
 
     expect(mockedAxios.get).toHaveBeenCalledWith(
-      'https://api.openweathermap.org/data/2.5/forecast',
+      'https://api.weatherapi.com/v1/forecast.json',
       {
         params: {
-          lat: 35.5309,
-          lon: 139.7028,
-          appid: 'my-api-key',
-          units: 'metric',
+          key: 'my-api-key',
+          q: 'Kawasaki,Japan',
+          days: 1,
           lang: 'ja',
+          aqi: 'no',
+          alerts: 'no',
         },
       }
     );
   });
 
-  it('should handle rainy weather', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    mockedAxios.get.mockResolvedValue({
+  it('should call JMA API with correct endpoint', async () => {
+    const weatherApiResponse = {
       data: {
-        list: [
-          {
-            dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 09:00:00`,
-            main: { temp: 12, temp_min: 12, temp_max: 12 },
-            weather: [{ main: 'Rain', description: '雨' }],
-            pop: 0.9,
-          },
-        ],
-      },
-    });
-
-    const result = await getWeather('test-api-key');
-
-    expect(result.emoji).toBe('🌧️');
-    expect(result.description).toBe('雨');
-    expect(result.precipitation).toBe(90);
-  });
-
-  it('should handle various weather types', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    const weatherTypes = [
-      { main: 'Clouds', emoji: '☁️' },
-      { main: 'Drizzle', emoji: '🌦️' },
-      { main: 'Thunderstorm', emoji: '⛈️' },
-      { main: 'Snow', emoji: '❄️' },
-      { main: 'Mist', emoji: '🌫️' },
-      { main: 'Fog', emoji: '🌫️' },
-      { main: 'Unknown', emoji: '🌤️' }, // default
-    ];
-
-    for (const { main, emoji } of weatherTypes) {
-      mockedAxios.get.mockResolvedValue({
-        data: {
-          list: [
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 10.0,
+          condition: { text: '晴れ', code: 1000 },
+        },
+        forecast: {
+          forecastday: [
             {
-              dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-              dt_txt: `${todayStr} 09:00:00`,
-              main: { temp: 15, temp_min: 15, temp_max: 15 },
-              weather: [{ main, description: 'test' }],
-              pop: 0.5,
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 12.0,
+                mintemp_c: 8.0,
+                daily_chance_of_rain: 0,
+                condition: { text: '晴れ', code: 1000 },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 8.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+              ],
             },
           ],
         },
-      });
+      },
+    };
 
-      const result = await getWeather('test-api-key');
-      expect(result.emoji).toBe(emoji);
-    }
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '0', '0', '0'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
+
+    await getWeather('test-api-key');
+
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      'https://www.jma.go.jp/bosai/forecast/data/forecast/140000.json'
+    );
+  });
+
+  it('should handle cloudy weather with correct emoji', async () => {
+    const weatherApiResponse = {
+      data: {
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 12.0,
+          condition: { text: '曇り', code: 1006 },
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 15.0,
+                mintemp_c: 10.0,
+                daily_chance_of_rain: 20,
+                condition: { text: '曇り', code: 1006 },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 10.0, chance_of_rain: 20, condition: { text: '曇り', code: 1006 } },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '30', '20', '10'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
+
+    const result = await getWeather('test-api-key');
+
+    expect(result.emoji).toBe('☁️');
+    expect(result.description).toBe('曇り');
+    expect(result.precipitation).toBe(30); // max from JMA [30, 20, 10]
+  });
+
+  it('should handle rainy weather with correct emoji', async () => {
+    const weatherApiResponse = {
+      data: {
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 10.0,
+          condition: { text: '雨', code: 1063 },
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 12.0,
+                mintemp_c: 8.0,
+                daily_chance_of_rain: 80,
+                condition: { text: '雨', code: 1063 },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 8.0, chance_of_rain: 80, condition: { text: '雨', code: 1063 } },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '70', '80', '60'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
+
+    const result = await getWeather('test-api-key');
+
+    expect(result.emoji).toBe('🌦️');
+    expect(result.description).toBe('雨の可能性');
+    expect(result.precipitation).toBe(80);
   });
 
   it('should round temperature values', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    mockedAxios.get.mockResolvedValue({
+    const weatherApiResponse = {
       data: {
-        list: [
-          {
-            dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 09:00:00`,
-            main: { temp: 15.7, temp_min: 15.7, temp_max: 15.7 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.1,
-          },
-          {
-            dt: Math.floor(new Date(`${todayStr}T12:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 12:00:00`,
-            main: { temp: 20.4, temp_min: 20.4, temp_max: 20.4 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.0,
-          },
-          {
-            dt: Math.floor(new Date(`${todayStr}T18:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 18:00:00`,
-            main: { temp: 10.2, temp_min: 10.2, temp_max: 10.2 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.0,
-          },
-        ],
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 15.7,
+          condition: { text: '晴れ', code: 1000 },
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 20.4,
+                mintemp_c: 10.2,
+                daily_chance_of_rain: 0,
+                condition: { text: '晴れ', code: 1000 },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 10.2, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 12:00', temp_c: 15.7, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                { time: '2026-01-08 18:00', temp_c: 20.4, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+              ],
+            },
+          ],
+        },
       },
-    });
+    };
+
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '0', '0', '0'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
 
     const result = await getWeather('test-api-key');
 
@@ -184,96 +442,203 @@ describe('weatherService', () => {
     expect(result.temperature.max).toBe(20); // Math.round(20.4)
   });
 
-  it('should convert precipitation to percentage', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    mockedAxios.get.mockResolvedValue({
+  it('should filter out hours outside 09:00-23:00 range', async () => {
+    const weatherApiResponse = {
       data: {
-        list: [
-          {
-            dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 09:00:00`,
-            main: { temp: 15, temp_min: 15, temp_max: 15 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.456,
-          },
-        ],
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 15.0,
+          condition: { text: '晴れ', code: 1000 },
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 20.0,
+                mintemp_c: 5.0,
+                daily_chance_of_rain: 0,
+                condition: { text: '晴れ', code: 1000 },
+              },
+              hour: [
+                // 00:00 - should be filtered out
+                { time: '2026-01-08 00:00', temp_c: 5.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                // 09:00 - should be included
+                { time: '2026-01-08 09:00', temp_c: 10.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+                // 23:00 - should be included
+                { time: '2026-01-08 23:00', temp_c: 12.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+              ],
+            },
+          ],
+        },
       },
-    });
+    };
+
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '0', '0', '0'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
 
     const result = await getWeather('test-api-key');
 
-    expect(result.precipitation).toBe(46); // Math.round(0.456 * 100)
+    // 00:00 (temp=5.0) should be excluded, only 09:00 and 23:00 used
+    expect(result.temperature.min).toBe(10); // min of [10.0, 12.0]
+    expect(result.temperature.max).toBe(12); // max of [10.0, 12.0]
   });
 
-  it('should use first data if no forecast for today 09:00-23:00', async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    mockedAxios.get.mockResolvedValue({
+  it('should handle JMA API failure gracefully with default precipitation', async () => {
+    const weatherApiResponse = {
       data: {
-        list: [
-          {
-            dt: Math.floor(
-              new Date(`${yesterdayStr}T09:00:00`).getTime() / 1000
-            ),
-            dt_txt: `${yesterdayStr} 09:00:00`,
-            main: { temp: 10, temp_min: 10, temp_max: 10 },
-            weather: [{ main: 'Clouds', description: '曇り' }],
-            pop: 0.4,
-          },
-        ],
+        location: {
+          name: 'Kawasaki',
+          region: 'Kanagawa',
+          country: 'Japan',
+          lat: 35.53,
+          lon: 139.7,
+          localtime: '2026-01-08 12:00',
+        },
+        current: {
+          temp_c: 10.0,
+          condition: { text: '晴れ', code: 1000 },
+        },
+        forecast: {
+          forecastday: [
+            {
+              date: '2026-01-08',
+              day: {
+                maxtemp_c: 12.0,
+                mintemp_c: 8.0,
+                daily_chance_of_rain: 0,
+                condition: { text: '晴れ', code: 1000 },
+              },
+              hour: [
+                { time: '2026-01-08 09:00', temp_c: 8.0, chance_of_rain: 0, condition: { text: '晴れ', code: 1000 } },
+              ],
+            },
+          ],
+        },
       },
-    });
+    };
+
+    mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+    mockedAxios.get.mockRejectedValueOnce(new Error('JMA API error'));
 
     const result = await getWeather('test-api-key');
 
-    // 昨日のデータだが、フォールバックとして使用される
     expect(result.temperature.current).toBe(10);
-    expect(result.description).toBe('曇り');
+    expect(result.precipitation).toBe(0); // default value when JMA fails
+    expect(result.description).toBe('晴れ');
   });
 
-  it('should filter out forecasts outside 09:00-23:00 range', async () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+  it('should throw error when Weather API fails', async () => {
+    mockedAxios.get.mockRejectedValue(new Error('Weather API error'));
 
-    mockedAxios.get.mockResolvedValue({
-      data: {
-        list: [
-          // 00:00 - should be filtered out
-          {
-            dt: Math.floor(new Date(`${todayStr}T00:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 00:00:00`,
-            main: { temp: 5, temp_min: 5, temp_max: 5 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.0,
-          },
-          // 09:00 - should be included
-          {
-            dt: Math.floor(new Date(`${todayStr}T09:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 09:00:00`,
-            main: { temp: 15, temp_min: 15, temp_max: 15 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.1,
-          },
-          // 23:00 - should be included
-          {
-            dt: Math.floor(new Date(`${todayStr}T23:00:00`).getTime() / 1000),
-            dt_txt: `${todayStr} 23:00:00`,
-            main: { temp: 10, temp_min: 10, temp_max: 10 },
-            weather: [{ main: 'Clear', description: '晴れ' }],
-            pop: 0.2,
-          },
-        ],
-      },
-    });
+    await expect(getWeather('test-api-key')).rejects.toThrow();
+  });
 
-    const result = await getWeather('test-api-key');
+  it('should handle various Weather API condition codes', async () => {
+    const weatherTypes = [
+      { code: 1000, description: '晴れ', emoji: '☀️' },
+      { code: 1003, description: '晴れ時々曇り', emoji: '⛅' },
+      { code: 1006, description: '曇り', emoji: '☁️' },
+      { code: 1030, description: '霧', emoji: '🌫️' },
+      { code: 1063, description: '雨の可能性', emoji: '🌦️' },
+      { code: 1183, description: '小雨', emoji: '🌧️' },
+      { code: 1195, description: '強い雨', emoji: '🌧️' },
+      { code: 1087, description: '雷雨の可能性', emoji: '⛈️' },
+      { code: 1210, description: '小雪', emoji: '🌨️' },
+      { code: 1225, description: '大雪', emoji: '❄️' },
+    ];
 
-    // 00:00のデータ（temp=5）は除外され、09:00と23:00のみが使用される
-    expect(result.temperature.min).toBe(10); // min of [15, 10]
-    expect(result.temperature.max).toBe(15); // max of [15, 10]
+    const jmaApiResponse = {
+      data: [
+        {
+          publishingOffice: '横浜地方気象台',
+          reportDatetime: '2026-01-08T11:00:00+09:00',
+          timeSeries: [
+            { timeDefines: [], areas: [] },
+            {
+              timeDefines: [],
+              areas: [
+                {
+                  area: { name: '東部', code: '140010' },
+                  pops: ['--', '0', '0', '0'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    for (const { code, description, emoji } of weatherTypes) {
+      const weatherApiResponse = {
+        data: {
+          location: {
+            name: 'Kawasaki',
+            region: 'Kanagawa',
+            country: 'Japan',
+            lat: 35.53,
+            lon: 139.7,
+            localtime: '2026-01-08 12:00',
+          },
+          current: {
+            temp_c: 10.0,
+            condition: { text: description, code },
+          },
+          forecast: {
+            forecastday: [
+              {
+                date: '2026-01-08',
+                day: {
+                  maxtemp_c: 12.0,
+                  mintemp_c: 8.0,
+                  daily_chance_of_rain: 0,
+                  condition: { text: description, code },
+                },
+                hour: [
+                  { time: '2026-01-08 09:00', temp_c: 8.0, chance_of_rain: 0, condition: { text: description, code } },
+                ],
+              },
+            ],
+          },
+        },
+      };
+
+      mockedAxios.get.mockResolvedValueOnce(weatherApiResponse);
+      mockedAxios.get.mockResolvedValueOnce(jmaApiResponse);
+
+      const result = await getWeather('test-api-key');
+      expect(result.emoji).toBe(emoji);
+      expect(result.description).toBe(description);
+
+      vi.clearAllMocks();
+    }
   });
 });

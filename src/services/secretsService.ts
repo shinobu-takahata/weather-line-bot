@@ -36,6 +36,18 @@ export async function getOpenWeatherApiKey(): Promise<string> {
 }
 
 /**
+ * Weather API Keyを取得
+ */
+export async function getWeatherApiKey(): Promise<string> {
+  Logger.info('Fetching Weather API Key from Parameter Store');
+
+  return retryWithBackoff(
+    () => getParameter(PARAMETER_STORE.weatherApiKey),
+    'Get Weather API Key'
+  );
+}
+
+/**
  * LINE Channel Access Tokenを取得
  */
 export async function getLineChannelAccessToken(): Promise<string> {
